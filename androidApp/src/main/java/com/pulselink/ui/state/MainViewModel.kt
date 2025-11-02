@@ -1,0 +1,159 @@
+package com.pulselink.ui.state
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.pulselink.domain.model.Contact
+import com.pulselink.domain.model.EscalationTier
+import com.pulselink.data.alert.SoundCatalog
+import com.pulselink.domain.model.SoundCategory
+import com.pulselink.domain.repository.AlertRepository
+import com.pulselink.domain.repository.ContactRepository
+import com.pulselink.domain.repository.SettingsRepository
+import com.pulselink.service.AlertRouter
+import com.pulselink.service.PulseLinkForegroundService
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val contactRepository: ContactRepository,
+    private val alertRepository: AlertRepository,
+    private val settingsRepository: SettingsRepository,
+    private val alertRouter: AlertRouter,
+    private val soundCatalog: SoundCatalog
+) : ViewModel() {
+
+    private val dispatching = MutableStateFlow(false)
+    private val lastMessage = MutableStateFlow<String?>(null)
+    private val emergencySounds = soundCatalog.emergencyOptions()
+    private val checkInSounds = soundCatalog.checkInOptions()
+
+    private val _uiState = MutableStateFlow(PulseLinkUiState())
+    val uiState: StateFlow<PulseLinkUiState> = _uiState
+
+    init {
+        viewModelScope.launch {
+            combine(
+                settingsRepository.settings,
+                contactRepository.observeContacts(),
+                alertRepository.observeRecent(10),
+                dispatching,
+                lastMessage
+            ) { settings, contacts, events, isDispatching, message ->
+                val normalizedSettings = ensureSoundDefaults(settings)
+                val permissionHints = buildList {
+                    if (!normalizedSettings.listeningEnabled) add("Listening is paused")
+                }
+                PulseLinkUiState(
+                    settings = normalizedSettings,
+                    contacts = contacts,
+                    recentEvents = events,
+                    isListening = normalizedSettings.listeningEnabled,
+                    permissionHints = permissionHints,
+                    isDispatching = isDispatching,
+                    lastMessagePreview = message,
+                    emergencySoundOptions = emergencySounds,
+                    checkInSoundOptions = checkInSounds
+                )
+            }.collect { state ->
+                _uiState.value = state
+            }
+        }
+    }
+
+    fun toggleListening(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setListening(enabled)
+        }
+    }
+
+    fun saveContact(contact: Contact) {
+        viewModelScope.launch {
+            contactRepository.upsert(contact)
+        }
+    }
+
+    fun deleteContact(id: Long) {
+        viewModelScope.launch {
+            contactRepository.delete(id)
+        }
+    }
+
+    fun triggerTest() {
+        dispatch(EscalationTier.EMERGENCY, "PulseLink test")
+    }
+
+    fun sendCheckIn() {
+        dispatch(EscalationTier.CHECK_IN, "PulseLink check in")
+    }
+
+    fun updateEmergencySound(key: String) {
+        viewModelScope.launch {
+            settingsRepository.update { settings ->
+                settings.copy(
+                    emergencyProfile = settings.emergencyProfile.copy(soundKey = key)
+                )
+            }
+        }
+    }
+
+    fun updateCheckInSound(key: String) {
+        viewModelScope.launch {
+            settingsRepository.update { settings ->
+                settings.copy(
+                    checkInProfile = settings.checkInProfile.copy(soundKey = key)
+                )
+            }
+        }
+    }
+
+    private fun dispatch(tier: EscalationTier, phrase: String) {
+        viewModelScope.launch {
+            dispatching.value = true
+            lastMessage.value = phrase
+            alertRouter.dispatchManual(tier, phrase)
+            dispatching.value = false
+        }
+    }
+
+    fun ensureServiceRunning(context: android.content.Context) {
+        PulseLinkForegroundService.enqueue(context)
+    }
+
+    private fun ensureSoundDefaults(settings: com.pulselink.domain.model.PulseLinkSettings): com.pulselink.domain.model.PulseLinkSettings {
+        var updatedSettings = settings
+        if (settings.emergencyProfile.soundKey == null) {
+            soundCatalog.defaultKeyFor(SoundCategory.SIREN)?.let { defaultKey ->
+                viewModelScope.launch {
+                    settingsRepository.update { current ->
+                        current.copy(
+                            emergencyProfile = current.emergencyProfile.copy(soundKey = defaultKey)
+                        )
+                    }
+                }
+                updatedSettings = updatedSettings.copy(
+                    emergencyProfile = updatedSettings.emergencyProfile.copy(soundKey = defaultKey)
+                )
+            }
+        }
+        if (settings.checkInProfile.soundKey == null) {
+            soundCatalog.defaultKeyFor(SoundCategory.CHIME)?.let { defaultKey ->
+                viewModelScope.launch {
+                    settingsRepository.update { current ->
+                        current.copy(
+                            checkInProfile = current.checkInProfile.copy(soundKey = defaultKey)
+                        )
+                    }
+                }
+                updatedSettings = updatedSettings.copy(
+                    checkInProfile = updatedSettings.checkInProfile.copy(soundKey = defaultKey)
+                )
+            }
+        }
+        return updatedSettings
+    }
+}

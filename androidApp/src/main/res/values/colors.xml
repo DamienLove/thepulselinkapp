@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#121212</color>
+    <color name="pulse_primary">#1A237E</color>
+    <color name="pulse_secondary">#FFEA00</color>
+    <color name="pulse_error">#FF5252</color>
+    <color name="pulse_surface">#12131F</color>
+    <color name="pulse_on_surface">#E8EAFF</color>
+</resources>

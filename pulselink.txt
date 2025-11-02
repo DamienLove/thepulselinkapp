@@ -1,0 +1,34 @@
+PulseLink Build Notes
+=====================
+
+Created: 2025-11-02
+
+-- Overview --
+PulseLink is a clean-room rebuild of the emergency phrase app. It includes continuous speech recognition, SMS escalation, high-priority notifications, and contact management without blocking any messaging flows.
+
+-- 2025-11-02 Update --
+- Confirmed new audio assets present in `androidApp/src/main/res/raw`.
+- Rebuilt `androidApp:assembleDebug` on 2025-11-02 01:29 local; output at `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+- Verified the rebuilt APK bundles the raw audio via `unzip -l`.
+- Next step: install the 2025-11-02 build on a device and confirm each alert sound plays end-to-end.
+- Cleaned Gradle artifacts (`androidApp/build`, project-level `.gradle`) ahead of initial commit.
+- Added `PulseLink-ui-mockup/` sketches (1.png-6.png) to track UI direction.
+- Removed bundled Gradle distribution artifacts to stay under GitHub size limits.
+- Prepared repository for push to `DamienLove/thepulselinkapp` (remote creation pending).
+
+-- Modules --
+androidApp: Compose UI + Hilt + Room + DataStore + WorkManager integration for long-running foreground services.
+
+-- Quick Run --
+1. Install Temurin JDK 17.
+2. Generate Gradle wrapper jars (if missing) with gradle wrapper --gradle-version 8.6.
+3. Execute ./gradlew androidApp:assembleDebug.
+4. Deploy via adb install androidApp/build/outputs/apk/debug/androidApp-debug.apk.
+
+-- Key Services --
+- PulseLinkForegroundService: Maintains ongoing notification + spawns PulseLinkVoiceService for hotword capture.
+- PulseLinkVoiceService: SpeechRecognizer loop that feeds AlertRouter.
+- AlertRouter: Resolves phrases to escalation tiers and uses AlertDispatcher for SMS + notifications.
+
+-- Permissions --
+App requests microphone, SMS (send/receive), notification, and location access. Behaviors degrade gracefully when any permission is denied.

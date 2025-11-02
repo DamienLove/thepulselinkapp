@@ -1,0 +1,18 @@
+package com.pulselink.ui.state
+
+import com.pulselink.domain.model.AlertEvent
+import com.pulselink.domain.model.Contact
+import com.pulselink.domain.model.PulseLinkSettings
+import com.pulselink.domain.model.SoundOption
+
+data class PulseLinkUiState(
+    val settings: PulseLinkSettings = PulseLinkSettings(),
+    val contacts: List<Contact> = emptyList(),
+    val recentEvents: List<AlertEvent> = emptyList(),
+    val isListening: Boolean = true,
+    val permissionHints: List<String> = emptyList(),
+    val isDispatching: Boolean = false,
+    val lastMessagePreview: String? = null,
+    val emergencySoundOptions: List<SoundOption> = emptyList(),
+    val checkInSoundOptions: List<SoundOption> = emptyList()
+)

@@ -1,0 +1,30 @@
+package com.pulselink.data.db
+
+import com.pulselink.domain.model.Contact
+import com.pulselink.domain.repository.ContactRepository
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class ContactRepositoryImpl @Inject constructor(
+    private val contactDao: ContactDao
+) : ContactRepository {
+    override fun observeContacts(): Flow<List<Contact>> = contactDao.observeContacts()
+
+    override suspend fun upsert(contact: Contact) {
+        contactDao.upsert(contact)
+    }
+
+    override suspend fun delete(contactId: Long) {
+        contactDao.deleteById(contactId)
+    }
+
+    override suspend fun getEmergencyContacts(): List<Contact> {
+        return contactDao.getByTier("EMERGENCY")
+    }
+
+    override suspend fun getCheckInContacts(): List<Contact> {
+        return contactDao.getByTier("CHECK_IN")
+    }
+}
