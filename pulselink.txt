@@ -14,7 +14,7 @@ PulseLink is a clean-room rebuild of the emergency phrase app. It includes conti
 - Cleaned Gradle artifacts (`androidApp/build`, project-level `.gradle`) ahead of initial commit.
 - Added `PulseLink-ui-mockup/` sketches (1.png-6.png) to track UI direction.
 - Removed bundled Gradle distribution artifacts to stay under GitHub size limits.
-- Prepared repository for push to `DamienLove/thepulselinkapp` (remote creation pending).
+- Initial snapshot pushed to GitHub: `DamienLove/thepulselinkapp` (branch `main`).
 
 -- Modules --
 androidApp: Compose UI + Hilt + Room + DataStore + WorkManager integration for long-running foreground services.
